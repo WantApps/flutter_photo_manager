@@ -76,6 +76,13 @@ interface IDBUtils {
 
   }
 
+  data class AssetSizeInfo(
+          val width: Int,
+          val height: Int,
+          val orientation: Int,
+          val duration: Long
+  )
+
   val idSelection: String
     get() = "${MediaStore.Images.Media._ID} = ?"
 

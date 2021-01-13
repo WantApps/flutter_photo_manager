@@ -118,6 +118,7 @@ class _DetailPageState extends State<DetailPage> {
                   showToast('The id already copied.');
                 },
               ),
+              buildInfoItem("type", "${entity.type.toString()}:(${entity.typeInt})"),
               buildInfoItem("create", entity.createDateTime.toString()),
               buildInfoItem("modified", entity.modifiedDateTime.toString()),
               buildInfoItem("size", entity.size.toString()),

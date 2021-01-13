@@ -6,6 +6,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.Cursor
 import android.graphics.BitmapFactory
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import android.provider.BaseColumns
@@ -20,6 +21,9 @@ import top.kikt.imagescanner.core.cache.CacheContainer
 import top.kikt.imagescanner.core.entity.AssetEntity
 import top.kikt.imagescanner.core.entity.FilterOption
 import top.kikt.imagescanner.core.entity.GalleryEntity
+import top.kikt.imagescanner.core.utils.AndroidQDBUtils.getInt
+import top.kikt.imagescanner.core.utils.AndroidQDBUtils.getLong
+import top.kikt.imagescanner.core.utils.AndroidQDBUtils.getString
 import top.kikt.imagescanner.util.LogUtils
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -231,14 +235,34 @@ object Android30DbUtils : IDBUtils {
     val date = cursor.getLong(MediaStore.Images.Media.DATE_TAKEN)
     val type = cursor.getInt(MEDIA_TYPE)
 
-    val duration = if (type == MEDIA_TYPE_IMAGE) 0 else cursor.getLong(MediaStore.Video.VideoColumns.DURATION)
-    val width = cursor.getInt(MediaStore.MediaColumns.WIDTH)
-    val height = cursor.getInt(MediaStore.MediaColumns.HEIGHT)
+    val (width, height, orientation, duration) = if (type == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO) {
+      getVideoInfo(path)
+    } else {
+      getPhotoInfo(cursor)
+    }
     val displayName = cursor.getString(MediaStore.Images.Media.DISPLAY_NAME)
     val modifiedDate = cursor.getLong(MediaStore.MediaColumns.DATE_MODIFIED)
-    val orientation: Int = cursor.getInt(MediaStore.MediaColumns.ORIENTATION)
     val relativePath: String = cursor.getString(MediaStore.MediaColumns.RELATIVE_PATH)
-    return AssetEntity(id, path, duration, date, width, height, getMediaType(type), displayName, modifiedDate, orientation, androidQRelativePath = relativePath)
+    return AssetEntity(id, path, duration, date, width, height, AndroidQDBUtils.getMediaType(type), displayName, modifiedDate, orientation, androidQRelativePath = relativePath)
+  }
+
+  private fun getVideoInfo(path: String): IDBUtils.AssetSizeInfo {
+    val retriever = MediaMetadataRetriever()
+    retriever.setDataSource(path)
+    val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong() ?: 0L
+    val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toInt() ?: 0
+    val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toInt() ?: 0
+    val orientation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toInt() ?: 0
+    retriever.release()
+    return IDBUtils.AssetSizeInfo(width, height, orientation, duration)
+  }
+
+  private fun getPhotoInfo(cursor: Cursor): IDBUtils.AssetSizeInfo {
+    val duration = 0L
+    val width = cursor.getInt(MediaStore.MediaColumns.WIDTH)
+    val height = cursor.getInt(MediaStore.MediaColumns.HEIGHT)
+    val orientation: Int = cursor.getInt(MediaStore.MediaColumns.ORIENTATION)
+    return IDBUtils.AssetSizeInfo(width, height, orientation, duration)
   }
 
   override fun getAssetEntity(context: Context, id: String): AssetEntity? {
