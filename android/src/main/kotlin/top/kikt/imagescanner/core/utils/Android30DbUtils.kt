@@ -38,7 +38,7 @@ import kotlin.concurrent.withLock
 @RequiresApi(Build.VERSION_CODES.R)
 @SuppressLint("Recycle")
 object Android30DbUtils : IDBUtils {
-  private const val TAG = "PhotoManagerPlugin"
+  private const val TAG = "Android30DbUtils"
 
   private var androidQCache = AndroidQCache()
 
@@ -166,7 +166,7 @@ object Android30DbUtils : IDBUtils {
         ?: return emptyList()
 
     cursorWithRange(cursor, page * pageSize, pageSize) {
-      val asset = convertCursorToAssetEntity(cursor)
+      val asset = convertCursorToAssetEntity(cursor, context)
       list.add(asset)
     }
 
@@ -212,7 +212,7 @@ object Android30DbUtils : IDBUtils {
         ?: return emptyList()
 
     cursorWithRange(cursor, start, pageSize) {
-      val asset = convertCursorToAssetEntity(cursor)
+      val asset = convertCursorToAssetEntity(cursor, context)
       list.add(asset)
     }
 
@@ -229,14 +229,18 @@ object Android30DbUtils : IDBUtils {
 
   private fun assetKeys() = IDBUtils.storeImageKeys + IDBUtils.storeVideoKeys + IDBUtils.typeKeys + arrayOf(MediaStore.MediaColumns.RELATIVE_PATH)
 
-  private fun convertCursorToAssetEntity(cursor: Cursor): AssetEntity {
+  private fun convertCursorToAssetEntity(cursor: Cursor, context: Context): AssetEntity {
     val id = cursor.getString(MediaStore.MediaColumns._ID)
     val path = cursor.getString(MediaStore.MediaColumns.DATA)
     val date = cursor.getLong(MediaStore.Images.Media.DATE_TAKEN)
     val type = cursor.getInt(MEDIA_TYPE)
 
     val (width, height, orientation, duration) = if (type == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO) {
-      getVideoInfo(path)
+      val contentUri: Uri = ContentUris.withAppendedId(
+              MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+              id.toLong()
+      )
+      getVideoInfo(contentUri, context)
     } else {
       getPhotoInfo(cursor)
     }
@@ -246,9 +250,10 @@ object Android30DbUtils : IDBUtils {
     return AssetEntity(id, path, duration, date, width, height, AndroidQDBUtils.getMediaType(type), displayName, modifiedDate, orientation, androidQRelativePath = relativePath)
   }
 
-  private fun getVideoInfo(path: String): IDBUtils.AssetSizeInfo {
+  private fun getVideoInfo(uri: Uri, context: Context): IDBUtils.AssetSizeInfo {
+//    Log.d(TAG, "getVideoInfo: ")
     val retriever = MediaMetadataRetriever()
-    retriever.setDataSource(path)
+    retriever.setDataSource(context, uri)
     val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong() ?: 0L
     val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toInt() ?: 0
     val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toInt() ?: 0
@@ -275,7 +280,7 @@ object Android30DbUtils : IDBUtils {
     val cursor = context.contentResolver.query(allUri, keys, selection, args, null)
     cursor?.use {
       return if (cursor.moveToNext()) {
-        val dbAsset = convertCursorToAssetEntity(cursor)
+        val dbAsset = convertCursorToAssetEntity(cursor, context)
         cursor.close()
         dbAsset
       } else {

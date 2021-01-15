@@ -18,6 +18,7 @@ import top.kikt.imagescanner.util.LogUtils
 import top.kikt.imagescanner.util.ResultHandler
 import java.io.File
 import java.util.concurrent.Executors
+import kotlin.math.max
 
 /// create 2019-09-05 by cai
 /// Do some business logic assembly
@@ -25,7 +26,11 @@ import java.util.concurrent.Executors
 class PhotoManager(private val context: Context) {
 
   companion object {
+    private const val TAG = "PhotoManager"
+
     const val ALL_ID = "isAll"
+
+    private const val THUMB_SIZE_LIMIT = 350
 
     private val threadPool = Executors.newFixedThreadPool(5)
   }
@@ -81,22 +86,38 @@ class PhotoManager(private val context: Context) {
     val height = option.height
     val quality = option.quality
     val format = option.format
+    val startTime = System.currentTimeMillis()
     try {
+//      Log.d(TAG, "getThumb: sdk = ${Build.VERSION.SDK_INT}, legacyStorage = ${if (Build.VERSION.SDK_INT == 29) Environment.isExternalStorageLegacy() else false}, [$id], size = ($width*$height)")
       if (useFilePath()) {
+//        Log.d(TAG, "getThumb: [$id] with path")
         val asset = dbUtils.getAssetEntity(context, id)
+//        Log.d(TAG, "getThumb: [$id] asset = ${asset?.path}")
         if (asset == null) {
           resultHandler.replyError("The asset not found!")
           return
         }
-        ThumbnailUtil.getThumbnailByGlide(context, asset.path, option.width, option.height, format, quality, resultHandler.result)
+        if (max(width, height) > THUMB_SIZE_LIMIT) {
+          ThumbnailUtil.getThumbnailByGlide(context, asset.path, option.width, option.height, format, quality, resultHandler.result, startTime)
+        } else {
+          ThumbnailUtil.getThumbWithMediaStore(context, asset, width, height, format, quality, resultHandler.result, startTime)
+        }
       } else {
+//        Log.d(TAG, "getThumb: [$id] with uri")
         // need use android Q  MediaStore thumbnail api
         val asset = dbUtils.getAssetEntity(context, id)
+//        Log.d(TAG, "getThumb: [$id] asset = ${asset}")
         val type = asset?.type
         val uri = dbUtils.getThumbUri(context, id, width, height, type)
             ?: throw RuntimeException("Cannot load uri of $id.")
-        ThumbnailUtil.getThumbOfUri(context, uri, width, height, format, quality) {
-          resultHandler.reply(it)
+//        Log.d(TAG, "getThumb: [$id] uri = $uri")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+          ThumbnailUtil.getThumbWithResolver(context, uri, width, height, format, quality, resultHandler.result, startTime)
+        } else {
+          ThumbnailUtil.getThumbOfUri(context, uri, width, height, format, quality) {
+//            Log.d(TAG, "getThumb: [$id] result!! ${System.currentTimeMillis() - startTime}")
+            resultHandler.reply(it)
+          }
         }
       }
     } catch (e: Exception) {

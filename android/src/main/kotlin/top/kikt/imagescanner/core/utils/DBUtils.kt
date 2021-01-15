@@ -33,6 +33,7 @@ import kotlin.concurrent.withLock
 @Suppress("DEPRECATION")
 @SuppressLint("Recycle", "InlinedApi")
 object DBUtils : IDBUtils {
+  private const val TAG = "DBUtils"
 
   private val cacheContainer = CacheContainer()
 
@@ -245,6 +246,7 @@ object DBUtils : IDBUtils {
   }
 
   private fun getVideoInfo(path: String): IDBUtils.AssetSizeInfo {
+//    Log.d(TAG, "getVideoInfo: ")
     val retriever = MediaMetadataRetriever()
     retriever.setDataSource(path)
     val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong() ?: 0L

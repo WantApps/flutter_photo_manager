@@ -36,7 +36,7 @@ import kotlin.concurrent.withLock
 @RequiresApi(Build.VERSION_CODES.Q)
 @SuppressLint("Recycle")
 object AndroidQDBUtils : IDBUtils {
-  private const val TAG = "PhotoManagerPlugin"
+  private const val TAG = "AndroidQDBUtils"
 
   private val cacheContainer = CacheContainer()
 
@@ -150,7 +150,7 @@ object AndroidQDBUtils : IDBUtils {
         ?: return emptyList()
 
     while (cursor.moveToNext()) {
-      val asset = convertCursorToAssetEntity(cursor)
+      val asset = convertCursorToAssetEntity(cursor, context)
       list.add(asset)
       cache.putAsset(asset)
     }
@@ -193,7 +193,7 @@ object AndroidQDBUtils : IDBUtils {
         ?: return emptyList()
 
     while (cursor.moveToNext()) {
-      val asset = convertCursorToAssetEntity(cursor)
+      val asset = convertCursorToAssetEntity(cursor, context)
       list.add(asset)
       cache.putAsset(asset)
     }
@@ -206,13 +206,17 @@ object AndroidQDBUtils : IDBUtils {
 
   private fun assetKeys() = IDBUtils.storeImageKeys + IDBUtils.storeVideoKeys + IDBUtils.typeKeys + arrayOf(MediaStore.MediaColumns.RELATIVE_PATH)
 
-  private fun convertCursorToAssetEntity(cursor: Cursor): AssetEntity {
+  private fun convertCursorToAssetEntity(cursor: Cursor, context: Context): AssetEntity {
     val id = cursor.getString(MediaStore.MediaColumns._ID)
     val path = cursor.getString(MediaStore.MediaColumns.DATA)
     val date = cursor.getLong(MediaStore.Images.Media.DATE_TAKEN)
     val type = cursor.getInt(MEDIA_TYPE)
     val (width, height, orientation, duration) = if (type == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO) {
-      getVideoInfo(path)
+      val contentUri: Uri = ContentUris.withAppendedId(
+              MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+              id.toLong()
+      )
+      getVideoInfo(contentUri, context)
     } else {
       getPhotoInfo(cursor)
     }
@@ -222,9 +226,10 @@ object AndroidQDBUtils : IDBUtils {
     return AssetEntity(id, path, duration, date, width, height, getMediaType(type), displayName, modifiedDate, orientation, androidQRelativePath = relativePath)
   }
 
-  private fun getVideoInfo(path: String): IDBUtils.AssetSizeInfo {
+  private fun getVideoInfo(uri: Uri, context: Context): IDBUtils.AssetSizeInfo {
+//    Log.d(TAG, "getVideoInfo: ")
     val retriever = MediaMetadataRetriever()
-    retriever.setDataSource(path)
+    retriever.setDataSource(context, uri)
     val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong() ?: 0L
     val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toInt() ?: 0
     val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toInt() ?: 0
@@ -256,7 +261,7 @@ object AndroidQDBUtils : IDBUtils {
     val cursor = context.contentResolver.query(allUri, keys, selection, args, null)
     cursor?.use {
       return if (cursor.moveToNext()) {
-        val dbAsset = convertCursorToAssetEntity(cursor)
+        val dbAsset = convertCursorToAssetEntity(cursor, context)
         cacheContainer.putAsset(dbAsset)
         cursor.close()
         dbAsset
