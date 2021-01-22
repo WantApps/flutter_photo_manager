@@ -246,14 +246,23 @@ object DBUtils : IDBUtils {
   }
 
   private fun getVideoInfo(path: String): IDBUtils.AssetSizeInfo {
-//    Log.d(TAG, "getVideoInfo: ")
+//    Log.d(TAG, "getVideoInfo: $path")
+    var duration = 0L
+    var width = -1
+    var height = -1
+    var orientation = 0
     val retriever = MediaMetadataRetriever()
-    retriever.setDataSource(path)
-    val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong() ?: 0L
-    val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toInt() ?: 0
-    val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toInt() ?: 0
-    val orientation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toInt() ?: 0
-    retriever.release()
+    try {
+      retriever.setDataSource(path)
+      duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong() ?: 0L
+      width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toInt() ?: 0
+      height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toInt() ?: 0
+      orientation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toInt() ?: 0
+    } catch (ex: Throwable) {
+      Log.e(TAG, "getVideoInfo: $path", ex)
+    } finally {
+      retriever.release()
+    }
     return IDBUtils.AssetSizeInfo(width, height, orientation, duration)
   }
 

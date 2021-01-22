@@ -227,14 +227,23 @@ object AndroidQDBUtils : IDBUtils {
   }
 
   private fun getVideoInfo(uri: Uri, context: Context): IDBUtils.AssetSizeInfo {
-//    Log.d(TAG, "getVideoInfo: ")
+//    Log.d(TAG, "getVideoInfo: $uri")
+    var duration = 0L
+    var width = 0
+    var height = 0
+    var orientation = 0
     val retriever = MediaMetadataRetriever()
+    try {
     retriever.setDataSource(context, uri)
-    val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong() ?: 0L
-    val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toInt() ?: 0
-    val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toInt() ?: 0
-    val orientation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toInt() ?: 0
-    retriever.release()
+      duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong() ?: 0L
+      width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toInt() ?: 0
+      height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toInt() ?: 0
+      orientation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toInt() ?: 0
+    } catch (ex: Throwable) {
+      Log.e(TAG, "getVideoInfo: $uri", ex)
+    } finally {
+      retriever.release()
+    }
     return IDBUtils.AssetSizeInfo(width, height, orientation, duration)
   }
 

@@ -50,7 +50,7 @@ class FilterCond {
   }
 
   fun durationCond(): String {
-    return "$durationKey >=? AND $durationKey <=?"
+    return "$durationKey >? AND $durationKey <=?"
   }
 
   fun durationArgs(): Array<String> {
