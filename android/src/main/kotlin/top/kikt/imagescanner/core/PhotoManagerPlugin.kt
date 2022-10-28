@@ -93,7 +93,7 @@ class PhotoManagerPlugin(
         true
       }
       "log" -> {
-        LogUtils.isLog = call.arguments()
+        LogUtils.isLog = call.arguments()!!
         resultHandler.reply(1)
         true
       }
@@ -121,7 +121,7 @@ class PhotoManagerPlugin(
       }
       "cacheOriginBytes" -> {
         val cacheOriginBytes = call.arguments<Boolean>()
-        PhotoManagerPlugin.cacheOriginBytes = cacheOriginBytes
+        PhotoManagerPlugin.cacheOriginBytes = cacheOriginBytes!!
         resultHandler.reply(cacheOriginBytes)
         true
       }
